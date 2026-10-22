@@ -1,0 +1,738 @@
+<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>
+<title>Risto QR</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gloock&family=Instrument+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one narrow column read at the table. A voice prompt on top, then the order slip (primo, secondo, vino) it produces. */
+:root {
+  --bg: #16111a;
+  --surface: #1f1824;
+  --surface-2: #2a2130;
+  --fg: #f3ece6;
+  --muted: #a99cae;
+  --line: #3b2f43;
+  --accent: #e5607f;
+  --accent-fg: #1c0d13;
+  --glow: rgba(229, 96, 127, .55);
+  --font-display: "Gloock", Georgia, "Times New Roman", serif;
+  --font-body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f6f0f2; --surface: #fffdfd; --surface-2: #efe6e9; --fg: #231a26; --muted: #6d6072;
+    --line: #dccfd4; --accent: #a3233f; --accent-fg: #ffffff; --glow: rgba(163, 35, 63, .45); color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f6f0f2; --surface: #fffdfd; --surface-2: #efe6e9; --fg: #231a26; --muted: #6d6072;
+  --line: #dccfd4; --accent: #a3233f; --accent-fg: #ffffff; --glow: rgba(163, 35, 63, .45); color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 400 1rem/1.5 var(--font-body);
+  padding-block: 1.5rem 3rem;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.app { max-width: 34rem; margin-inline: auto; display: grid; gap: 1.75rem; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* Header */
+.top { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: .5rem; }
+.langs { display: flex; gap: .25rem; }
+.langs button { height: 2rem; min-width: 2.4rem; padding: 0 .55rem; border-radius: 4px; cursor: pointer; font-size: .75rem; font-weight: 600; letter-spacing: .08em; background: transparent; border: 1px solid var(--line); color: var(--muted); }
+.langs button[aria-pressed="true"] { background: var(--fg); border-color: var(--fg); color: var(--bg); }
+.eyebrow { margin: 0; font-size: .75rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+h1 { margin: 0; font: 400 2.1rem/1.08 var(--font-display); text-wrap: balance; }
+.lead { margin: .75rem 0 0; color: var(--muted); max-width: 30rem; }
+
+/* Voice prompt */
+.ask { display: grid; gap: 1.25rem; }
+.mic-row { display: flex; align-items: center; gap: 1.1rem; }
+.mic {
+  flex: none; width: 5.5rem; height: 5.5rem; border-radius: 50%; border: 0; cursor: pointer;
+  background: var(--accent); color: var(--accent-fg); display: grid; place-items: center;
+}
+.mic svg { width: 2.1rem; height: 2.1rem; }
+.mic.on { animation: ring 1.4s ease-out infinite; }
+@keyframes ring {
+  0% { box-shadow: 0 0 0 0 var(--glow); }
+  100% { box-shadow: 0 0 0 1.6rem rgba(0, 0, 0, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .mic.on { animation: none; box-shadow: 0 0 0 .4rem var(--glow); } }
+.status { margin: 0; min-width: 0; font-size: 1.1rem; font-weight: 500; line-height: 1.3; overflow-wrap: anywhere; }
+.status small { display: block; margin-top: .25rem; font-size: .85rem; font-weight: 400; color: var(--muted); }
+
+.typed { display: flex; flex-wrap: wrap; gap: .6rem; }
+.typed input {
+  flex: 1 1 12rem; min-width: 0; height: 3rem; padding: 0 .9rem; background: var(--surface);
+  border: 1px solid var(--line); border-radius: 6px;
+}
+.typed input::placeholder { color: var(--muted); }
+.btn {
+  height: 3rem; padding: 0 1.1rem; border-radius: 6px; cursor: pointer; font-weight: 600;
+  border: 1px solid var(--line); background: transparent;
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.btn:hover { border-color: var(--accent); }
+
+.chips { display: flex; flex-wrap: wrap; gap: .5rem; }
+.chip {
+  height: 2.25rem; padding: 0 .85rem; border-radius: 999px; cursor: pointer; font-size: .9rem;
+  background: transparent; border: 1px solid var(--line); color: var(--fg);
+}
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 600; }
+
+/* Order slip */
+.slip { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 1.25rem 1.1rem 1.1rem; display: grid; gap: 1rem; }
+.heard { margin: 0; font-size: .9rem; color: var(--muted); overflow-wrap: anywhere; }
+.tag {
+  display: inline-block; margin-right: .5rem; padding: .05rem .45rem; border: 1px solid var(--line); border-radius: 3px;
+  font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); vertical-align: .08em;
+}
+.lines { list-style: none; margin: 0; padding: 0; }
+.line { display: grid; grid-template-columns: 4.6rem minmax(0, 1fr) auto; gap: .25rem .75rem; padding-block: 1rem; border-top: 1px dashed var(--line); }
+.kind { font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); padding-top: .45rem; }
+.line h3 { margin: 0; font: 400 1.3rem/1.2 var(--font-display); text-wrap: balance; }
+.line p { margin: .25rem 0 0; font-size: .9rem; color: var(--muted); }
+.price { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; text-align: right; padding-top: .2rem; }
+.price small { display: block; font-weight: 400; font-size: .75rem; color: var(--muted); }
+.why { margin: 0; padding: .75rem .9rem; background: var(--surface-2); border-radius: 4px; font-size: .92rem; }
+.total { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; padding-top: .9rem; border-top: 2px solid var(--fg); }
+.total span:first-child { font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.total span:last-child { font: 400 1.6rem/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.actions { display: flex; flex-wrap: wrap; gap: .6rem; }
+
+/* Full menu */
+.menu { border-top: 1px solid var(--line); padding-top: 1rem; }
+.menu summary { cursor: pointer; font-weight: 600; color: var(--accent); }
+.menu-body { display: grid; gap: 1.5rem; padding-top: 1.25rem; }
+.menu h2 { margin: 0 0 .5rem; font: 400 1.25rem/1.2 var(--font-display); }
+.menu ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .75rem; }
+.item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .1rem 1rem; }
+.item b { font-weight: 500; }
+.item span { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+.item p { grid-column: 1 / -1; margin: 0; font-size: .85rem; color: var(--muted); }
+.foot { margin: 0; font-size: .8rem; color: var(--muted); }
+
+@media (max-width: 26rem) {
+  h1 { font-size: 1.8rem; }
+  .mic { width: 4.75rem; height: 4.75rem; }
+  .line { grid-template-columns: minmax(0, 1fr) auto; }
+  .kind { grid-column: 1 / -1; padding-top: 0; }
+}
+
+/* Language switch and option groups */
+.top { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: .5rem; }
+.top .eyebrow { margin: 0; }
+.langs { display: flex; gap: .35rem; }
+.lang { height: 2rem; min-width: 2.5rem; padding: 0 .55rem; border-radius: 4px; cursor: pointer; font-size: .78rem; font-weight: 600; letter-spacing: .08em; background: transparent; border: 1px solid var(--line); color: var(--muted); }
+.lang[aria-pressed="true"] { border-color: var(--accent); color: var(--fg); background: var(--surface-2); }
+.group { display: grid; gap: .5rem; }
+.glabel { margin: 0; font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.typed input { font-size: 1rem; }
+</style>
+
+<main class="app">
+  <header>
+    <div class="top">
+      <p class="eyebrow">Trattoria Villa Pergole</p>
+      <div id="langs" class="langs" role="group" aria-label="Lingua / Sprache / Language"></div>
+    </div>
+    <h1 data-i="h1"></h1>
+    <p class="lead" data-i="lead"></p>
+  </header>
+
+  <section class="ask">
+    <div class="mic-row">
+      <button id="mic" class="mic" type="button" aria-pressed="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="9" y="3" width="6" height="11" rx="3"></rect>
+          <path d="M5 11a7 7 0 0 0 14 0M12 18v3M8.5 21h7"></path>
+        </svg>
+      </button>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+    </div>
+    <form id="form" class="typed">
+      <label class="sr" for="q" data-i="qlabel"></label>
+      <input id="q" type="text" autocomplete="off" autocapitalize="sentences" enterkeyhint="send">
+      <button class="btn primary" type="submit" data-i="submit"></button>
+    </form>
+    <div class="group">
+      <p class="glabel" data-i="coursesLabel"></p>
+      <div id="courses" class="chips" role="group"></div>
+    </div>
+    <div class="group">
+      <p class="glabel" data-i="prefsLabel"></p>
+      <div id="chips" class="chips" role="group"></div>
+    </div>
+  </section>
+
+  <article id="slip" class="slip" aria-live="polite"></article>
+
+  <details class="menu">
+    <summary data-i="menuSummary"></summary>
+    <div id="menu" class="menu-body"></div>
+  </details>
+
+  <p class="foot" data-i="foot"></p>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- Menu data: Trattoria Villa Pergole (names in it / de / en from the printed menu) ---------- */
+  function I(it, de, en, p, o) { var x = { n: { it: it, de: de, en: en }, p: p }; for (var k in (o || {})) x[k] = o[k]; return x; }
+  // t: type (carne, pesce, vegetariano) · w: weight 1 light, 2 medium, 3 rich · tags: what a wine can pair with
+  var MENU = {
+    antipasti: [
+      I("Ostriche Kys (per pezzo)", "Kys-Austern (pro Stück)", "Kys oysters (each)", 5),
+      I("Cappesante al profumo d'arancia", "Jakobsmuscheln mit Orangenduft", "Orange scented pilgrim scallops", 20, { note: "pcs4" }),
+      I("Polipo tiepido con patate", "Lauwarmer Oktopus mit Kartoffeln", "Warm octopus with potatoes", 18),
+      I("Carpaccio di salmone affumicato", "Räucherlachs-Carpaccio", "Smoked salmon carpaccio", 17),
+      I("Carpaccio di spada affumicato con pepe rosa", "Geräucherter Schwertfisch-Carpaccio mit rosa Pfeffer", "Smoked swordfish carpaccio with pink pepper", 16),
+      I("Tris di carpacci affumicati (salmone, pesce spada, tonno)", "Dreierlei geräucherte Carpaccii (Lachs, Schwertfisch, Thunfisch)", "Trio of smoked carpaccio (salmon, swordfish, tuna)", 20),
+      I("Impepate di cozze", "Miesmuscheln mit schwarzem Pfeffer", "Black pepper mussels", 16),
+      I("Cocktail di gamberetti in salsa Aurora", "Garnelencocktail in Aurorasauce", "Shrimp cocktail in Aurora sauce", 14),
+      I("Polentina fresca con moscardini in umido", "Cremige Polenta mit geschmorten Moschuskraken", "Creamy polenta with braised musky octopus", 16),
+      I("Composizione di crudité", "Komposition von Crudités", "Crudité selection", 35, { dd: {
+        it: "Ostrica, scampo, gambero rosso di Sicilia, tartare di tonno, tartare di salmone, carpaccio di branzino e cappesante a lamelle",
+        de: "Auster, Kaisergranat, sizilianische rote Garnele, Thunfisch-Tartar, Lachs-Tartar, Wolfsbarsch-Carpaccio und Jakobsmuscheln in feinen Scheiben",
+        en: "Oyster, langoustine, Sicilian red prawn, tuna tartare, salmon tartare, sea bass carpaccio and thinly sliced scallops" } }),
+      I("Composizione di caldi", "Warme Fischspezialitäten", "Warm seafood selection", 28, { dd: {
+        it: "Cappesante al profumo d'arancia, polipo, polenta con moscardini, gamberi agli agrumi e cozze gratinate",
+        de: "Jakobsmuscheln mit Orangenduft, Oktopus, Polenta mit kleinen Moschuskraken, Garnelen mit Zitrusfrüchten und gratinierte Miesmuscheln",
+        en: "Scallops scented with orange, octopus, polenta with baby octopus, citrus-marinated prawns and gratinated mussels" } }),
+      I("Polentina fresca con funghi e Monte Veronese", "Frische Polenta mit Pilzen und Monte-Veronese-Käse", "Fresh polenta with mushrooms and Monte Veronese", 12),
+      I("Carpaccio di Angus con champignons e Parmigiano", "Carpaccio vom Angus-Rind mit Champignons und Parmigiano", "Angus beef carpaccio with mushrooms and Parmesan", 18),
+      I("Filetto di manzo alla tartara", "Tatar vom Rinderfilet", "Beef fillet tartare", 20),
+      I("Vitello tonnato con capperi", "Kalbfleisch mit Thunfischsauce und Kapern", "Veal with tuna sauce and capers", 16),
+      I("Caprese classica napoletana", "Klassischer neapolitanischer Caprese", "Classic Neapolitan caprese", 13),
+      I("Prosciutto crudo di Parma e melone", "Parmaschinken mit Melone", "Parma ham with melon", 16, { note: "season" })
+    ],
+    primi: [
+      I("Spaghetti allo scoglio", "Spaghetti mit Meeresfrüchten", "Spaghetti with seafood", 21, { t: "pesce", w: 2, tags: ["pesce", "crostacei", "pomodoro"] }),
+      I("Spaghetti alle vongole veraci", "Spaghetti mit Venusmuscheln", "Spaghetti with clams", 20, { t: "pesce", w: 1, tags: ["pesce", "crostacei"] }),
+      I("Bigoli al cartoccio con capesante e pomodorini", "Dicke Spaghetti in Folie gebacken mit Jakobsmuscheln und Kirschtomaten", "Thick spaghetti baked in foil with scallops and cherry tomatoes", 18, { t: "pesce", w: 1, tags: ["pesce", "crostacei", "pomodoro"] }),
+      I("Tortelloni al salmone", "Tortelloni mit Lachs", "Tortelloni with salmon", 15, { t: "pesce", w: 2, tags: ["pesce"] }),
+      I("Tagliatelle al tartufo e gamberi", "Nudeln mit Trüffel und Garnelen", "Noodles with truffle and prawns", 20, { t: "pesce", w: 2, tags: ["crostacei", "pesce", "tartufo"] }),
+      I("Linguine con polpa di granchio", "Linguine mit Krabbenfleisch", "Linguine with crab meat", 20, { t: "pesce", w: 1, tags: ["crostacei", "pesce"] }),
+      I("Linguine all'astice", "Linguine mit Hummer", "Linguine with lobster", 28, { t: "pesce", w: 2, tags: ["crostacei", "pesce"], note: "min2" }),
+      I("Tagliatelle al ragù di anatra", "Nudeln mit Ragout von der Ente", "Noodles with duck ragout", 14, { t: "carne", w: 3, tags: ["carne-rossa"] }),
+      I("Gnocchetti in rosa al tartufo", "Kleine Gnocchi in Rosa-Sauce mit Trüffel", "Gnocchetti in pink sauce with truffle", 18, { t: "carne", w: 2, tags: ["tartufo", "pomodoro"] }),
+      I("Tortelloni ripieni al tartufo", "Gefüllte Tortelloni mit Trüffel", "Truffle-filled tortelloni", 18, { t: "carne", w: 2, tags: ["tartufo", "carne-bianca"] }),
+      I("Spaghetti alla carbonara", "Spaghetti nach Carbonara-Art", "Spaghetti carbonara", 15, { t: "carne", w: 2, tags: ["formaggio", "carne-bianca"] }),
+      I("Spaghetti al ragù di manzo", "Spaghetti mit Rindfleischragout", "Spaghetti with beef ragout", 11, { t: "carne", w: 3, tags: ["carne-rossa", "pomodoro"] }),
+      I("Spaghetti aglio e olio", "Spaghetti mit Knoblauch und Öl", "Spaghetti with garlic and oil", 10, { t: "vegetariano", w: 1, tags: ["verdure"] }),
+      I("Pennette al pomodoro fresco", "Pennette mit frischen Tomaten", "Pennette with fresh tomatoes", 8, { t: "vegetariano", w: 1, tags: ["pomodoro", "verdure"] }),
+      I("Risotto al tartufo nero di Norcia", "Risotto mit schwarzem Trüffel aus Norcia", "Risotto with black truffle from Norcia", 22, { t: "vegetariano", w: 2, tags: ["tartufo", "funghi"], note: "min2" })
+    ],
+    secondi: [
+      I("Branzino alla griglia", "Gegrillter Wolfsbarsch", "Grilled sea bass", 18, { t: "pesce", w: 1, tags: ["pesce"] }),
+      I("Gamberoni alla griglia", "Riesengarnelen vom Grill", "Grilled king prawns", 20, { t: "pesce", w: 1, tags: ["crostacei", "pesce"] }),
+      I("Branzino al sale", "Seebarsch in Salzkruste", "Sea bass baked in salt crust", 29, { t: "pesce", w: 1, tags: ["pesce"], note: "min2" }),
+      I("Rombo sfilettato al pepe rosa", "Filet vom Steinbutt mit rosa Pfeffer", "Turbot fillet with pink pepper", 25, { t: "pesce", w: 1, tags: ["pesce"] }),
+      I("Grigliata mista di mare", "Gemischte Meeresfrüchteplatte vom Grill", "Mixed seafood grill", 28, { t: "pesce", w: 2, tags: ["pesce", "crostacei"], note: "min2" }),
+      I("Salmone alla griglia", "Gegrillter Lachs", "Grilled salmon", 17, { t: "pesce", w: 2, tags: ["pesce"] }),
+      I("Seppie alla griglia", "Sepien vom Grill", "Grilled cuttlefish", 16, { t: "pesce", w: 1, tags: ["pesce"] }),
+      I("Tagliata di Angus con rucola e grana", "Scheiben vom Angus-Rind mit Rucola und Parmesan", "Sliced Angus beef with rocket and parmesan", 18, { t: "carne", w: 2, tags: ["carne-rossa"] }),
+      I("Guanciale di manzo brasato con polenta fresca", "Geschmorte Rinderbäckchen mit frischer Polenta", "Braised beef cheek with fresh polenta", 18, { t: "carne", w: 3, tags: ["carne-rossa"] }),
+      I("Entrecôte di Angus alla griglia", "Angus-Entrecôte vom Grill", "Grilled Angus entrecôte", 15, { t: "carne", w: 2, tags: ["carne-rossa"] }),
+      I("Costata di manzo", "Hüftsteak am Knochen", "Sirloin steak", 22, { t: "carne", w: 3, tags: ["carne-rossa"] }),
+      I("Fiorentina di scottona", "Florentiner Steak", "Florentine steak", 6, { t: "carne", w: 3, tags: ["carne-rossa"], note: "perhg", x: true }),
+      I("Cotoletta alla milanese di pollo con patatine fritte", "Mailänder Hähnchenschnitzel mit Pommes frites", "Chicken Milanese with French fries", 14, { t: "carne", w: 1, tags: ["carne-bianca", "fritto"] }),
+      I("Chateaubriand", "Chateaubriand", "Chateaubriand", 30, { t: "carne", w: 3, tags: ["carne-rossa"], note: "min2" }),
+      I("Filetto alla griglia", "Gegrilltes Filet", "Grilled fillet", 25, { t: "carne", w: 2, tags: ["carne-rossa"] }),
+      I("Filetto al pepe verde", "Filet mit grünem Pfeffer", "Fillet with green pepper", 28, { t: "carne", w: 2, tags: ["carne-rossa"] }),
+      // Meatless mains taken from starters and sides, used only for vegetarian requests
+      I("Caprese classica napoletana", "Klassischer neapolitanischer Caprese", "Classic Neapolitan caprese", 13, { t: "vegetariano", w: 1, tags: ["formaggio", "pomodoro"], note: "fromStarters", hide: true }),
+      I("Polentina fresca con funghi e Monte Veronese", "Frische Polenta mit Pilzen und Monte-Veronese-Käse", "Fresh polenta with mushrooms and Monte Veronese", 12, { t: "vegetariano", w: 2, tags: ["funghi", "formaggio"], note: "fromStarters", hide: true }),
+      I("Verdure alla griglia", "Gemüse vom Grill", "Grilled vegetables", 6, { t: "vegetariano", w: 1, tags: ["verdure"], note: "fromSides", hide: true })
+    ],
+    contorni: [
+      I("Patatine fritte", "Pommes frites", "French fries", 4),
+      I("Insalata mista di stagione", "Gemischter Salat der Saison", "Mixed salad in season", 5),
+      I("Verdure cotte del giorno", "Gemüse des Tages", "Vegetables of the day", 6),
+      I("Verdure alla griglia", "Gemüse vom Grill", "Grilled vegetables", 6),
+      I("Patate al forno", "Ofenkartoffeln", "Oven-roasted potatoes", 7)
+    ],
+    formaggi: [
+      I("Gorgonzola DOP", "Gorgonzola", "Gorgonzola", 8, { note: "portion" }),
+      I("Brie nazionale", "Heimischer Brie", "Local Brie", 8, { note: "portion" }),
+      I("Parmigiano Reggiano", "Parmigiano Reggiano", "Parmigiano Reggiano", 8, { note: "portion" }),
+      I("Monte Veronese", "Monte Veronese", "Monte Veronese", 8, { note: "portion" })
+    ],
+    dolci: [
+      I("Tiramisù tradizionale della casa", "Traditionelles Tiramisu", "Traditional tiramisu", 7, { note: "homemade" }),
+      I("Panna cotta al caramello", "Panna Cotta mit Karamell", "Panna cotta with caramel", 7, { note: "homemade" }),
+      I("Tortino caldo al cioccolato", "Warmer Schokoladenkuchen", "Warm chocolate cake", 7.5, { note: "homemade" }),
+      I("Crema catalana", "Katalanische Crème", "Catalan cream", 7, { note: "homemade" }),
+      I("Sorbetto al limone", "Zitronensorbet", "Lemon sorbet", 3.5),
+      I("Sorbetto al limone con vodka", "Zitronensorbet mit Wodka", "Lemon sorbet with vodka", 7),
+      I("Torta ai pinoli", "Pinienkerntorte", "Pine nut cake", 6, { note: "bakery" }),
+      I("Tartufo nero (gelato)", "Schwarzer Trüffel (Eis)", "Black truffle (ice cream)", 5),
+      I("Tartufo bianco (gelato)", "Weißer Trüffel (Eis)", "White truffle (ice cream)", 5),
+      I("Gelato alla crema", "Vanilleeis", "Vanilla ice cream", 6),
+      I("Gelato al cioccolato", "Schokoladeneis", "Chocolate ice cream", 6),
+      I("Semifreddo al limone", "Zitronen-Semifreddo", "Lemon semifreddo", 6),
+      I("Semifreddo al cocco", "Kokos-Semifreddo", "Coconut semifreddo", 6),
+      I("Trancio di ananas fresco", "Frische Ananasscheibe", "Slice of fresh pineapple", 7),
+      I("Fragole alla panna montata", "Erdbeeren mit Schlagsahne", "Strawberries with whipped cream", 7),
+      I("Fragole al limone e zucchero", "Erdbeeren mit Zitronensaft und Zucker", "Strawberries with lemon juice and sugar", 7)
+    ],
+    // Example wine list: the PDF has no wine list yet. c: category · w: body · p: bottle · g: glass
+    vini: [
+      { n: "Franciacorta Brut", c: "bollicine", w: 1, p: 38, g: 8, tags: ["fritto", "pesce", "crostacei", "formaggio"],
+        d: { it: "Bollicine fini e fresche, puliscono il palato.", de: "Feine, frische Perlage, die den Gaumen reinigt.", en: "Fine, fresh bubbles that cleanse the palate." } },
+      { n: "Vermentino di Gallura", c: "bianco", w: 1, p: 26, g: 6, tags: ["pesce", "crostacei", "verdure"],
+        d: { it: "Bianco sapido e agrumato.", de: "Salziger Weißwein mit Zitrusnoten.", en: "Savory white with citrus notes." } },
+      { n: "Soave Classico", c: "bianco", w: 2, p: 24, g: 6, tags: ["verdure", "formaggio", "pesce", "funghi"],
+        d: { it: "Bianco morbido, note di mandorla.", de: "Weicher Weißwein mit Mandelnoten.", en: "Soft white with almond notes." } },
+      { n: "Lugana", c: "bianco", w: 2, p: 28, g: 7, tags: ["pesce", "crostacei", "carne-bianca", "verdure", "formaggio", "tartufo"],
+        d: { it: "Bianco di buon corpo, fresco e minerale.", de: "Weißwein mit gutem Körper, frisch und mineralisch.", en: "Full-bodied white, fresh and mineral." } },
+      { n: "Verdicchio dei Castelli di Jesi", c: "bianco", w: 2, p: 25, g: 6, tags: ["pesce", "fritto", "funghi", "tartufo"],
+        d: { it: "Bianco asciutto con un finale amarognolo.", de: "Trockener Weißwein mit leicht bitterem Abgang.", en: "Dry white with a slightly bitter finish." } },
+      { n: "Pinot Nero", c: "rosso", w: 1, p: 34, g: 8, tags: ["funghi", "carne-bianca", "verdure", "tartufo"],
+        d: { it: "Rosso leggero, profumato, tannini delicati.", de: "Leichter, duftender Rotwein mit feinen Tanninen.", en: "Light, fragrant red with delicate tannins." } },
+      { n: "Chianti Classico", c: "rosso", w: 2, p: 32, g: 8, tags: ["carne-rossa", "pomodoro", "carne-bianca"],
+        d: { it: "Rosso vivace, acidità che alleggerisce.", de: "Lebendiger Rotwein, die Säure macht ihn bekömmlich.", en: "Lively red, its acidity lightens rich food." } },
+      { n: "Montepulciano d'Abruzzo", c: "rosso", w: 2, p: 24, g: 6, tags: ["carne-rossa", "formaggio", "pomodoro"],
+        d: { it: "Rosso rotondo e succoso.", de: "Runder, saftiger Rotwein.", en: "Round, juicy red." } },
+      { n: "Barolo", c: "rosso", w: 3, p: 58, g: 13, tags: ["carne-rossa", "funghi", "tartufo"],
+        d: { it: "Rosso strutturato, tannini importanti.", de: "Kräftiger Rotwein mit markanten Tanninen.", en: "Structured red with firm tannins." } },
+      { n: "Amarone della Valpolicella", c: "rosso", w: 3, p: 70, g: 15, tags: ["carne-rossa", "formaggio"],
+        d: { it: "Rosso potente e avvolgente, per piatti ricchi.", de: "Kraftvoller, samtiger Rotwein für reichhaltige Gerichte.", en: "Powerful, velvety red for rich dishes." } }
+    ]
+  };
+
+  /* ---------- Interface texts ---------- */
+  var UI = {
+    it: {
+      h1: "Cosa ti va di mangiare oggi?",
+      lead: "Dillo a voce o scrivilo. Ti propongo antipasto, primo, secondo e vino. Puoi chiedere anche solo un primo.",
+      tap: "Tocca e parla", tryHint: "Prova a dire: «Voglio solo un primo di pesce»", listening: "Ti ascolto…",
+      nohear: "Non ho sentito niente.", nohear2: "Tocca il microfono e riprova.",
+      blocked: "Il microfono non è disponibile in questa pagina.", blocked2: "Scrivi qui sotto, oppure tocca il microfono sulla tastiera del telefono per dettare.",
+      qlabel: "Scrivi la tua richiesta", ph: "Oggi mi va il pesce, qualcosa di leggero", submit: "Proponi",
+      coursesLabel: "Cosa vuoi", prefsLabel: "Preferenze", micLabel: "Parla",
+      antipasto: "Antipasto", primo: "Primo", secondo: "Secondo", vino: "Vino",
+      menuSummary: "Menu completo", foot: "Il totale è indicativo e conta un calice di vino. I vini sono di esempio, in attesa della carta vera. Chiedi al personale per allergie e ingredienti.",
+      found: "Ecco cosa ti consiglio", said: "Hai detto: «%s».", prefsLine: "Preferenze: %s.", surprise: "Nessuna preferenza precisa, ti propongo qualcosa a sorpresa.",
+      example: "Esempio", exampleSaid: "Oggi mi va la carne", again: "Un'altra proposta", speak: "Leggi ad alta voce", total: "Totale indicativo",
+      glass: "calice", bottle: "bottiglia", wineHead: "Vini (esempio)",
+      whyAnt: "Va bene con l'antipasto (%s).", whySec: "Va bene con il secondo (%s).", whyPri: "Va bene con il primo (%s).", whyGen: "Una scelta equilibrata per questi piatti.", whyOnly: "Si abbina bene a %s.", whyNone: "Una scelta versatile.",
+      spoken: function (n, a, b, v) { var s = []; if (n) s.push("come antipasto " + n); if (a) s.push("come primo " + a); if (b) s.push("come secondo " + b); if (v) s.push("da bere " + v); return "Ti propongo " + s.join(", ") + "."; },
+      sections: { antipasti: "Antipasti", primi: "Primi", secondi: "Secondi", contorni: "Contorni", formaggi: "Formaggi", dolci: "Dolci" },
+      notes: { pcs4: "4 pezzi", season: "Solo in stagione", min2: "Minimo 2 persone, prezzo a persona", perhg: "Al peso, ogni 100 g", portion: "Porzione", homemade: "Fatto in casa", bakery: "Dalla pasticceria", fromStarters: "Dagli antipasti", fromSides: "Dai contorni" },
+      cats: { bollicine: "Bollicine", bianco: "Bianco", rosso: "Rosso" },
+      tags: { "carne-rossa": "carne rossa", "carne-bianca": "carne bianca", pesce: "pesce", crostacei: "crostacei", fritto: "fritto", tartufo: "tartufo", verdure: "verdure", formaggio: "formaggio", funghi: "funghi", pomodoro: "pomodoro" },
+      chips: { carne: "Carne", pesce: "Pesce", vegetariano: "Vegetariano", leggero: "Leggero", sostanzioso: "Sostanzioso", bollicine: "Bollicine", bianco: "Bianco", rosso: "Rosso", economico: "Spendo poco", "no-carne": "Senza carne", "no-pesce": "Senza pesce" }
+    },
+    de: {
+      h1: "Worauf haben Sie heute Lust?",
+      lead: "Sagen Sie es oder schreiben Sie es. Ich schlage Vorspeise, ersten Gang, Hauptgang und Wein vor. Sie können auch nur einen ersten Gang verlangen.",
+      tap: "Tippen und sprechen", tryHint: "Sagen Sie z. B.: „Nur einen ersten Gang mit Fisch“", listening: "Ich höre zu…",
+      nohear: "Ich habe nichts gehört.", nohear2: "Tippen Sie auf das Mikrofon und versuchen Sie es erneut.",
+      blocked: "Das Mikrofon ist auf dieser Seite nicht verfügbar.", blocked2: "Schreiben Sie unten oder tippen Sie auf das Mikrofon der Handytastatur zum Diktieren.",
+      qlabel: "Wunsch eingeben", ph: "Heute möchte ich Fisch, etwas Leichtes", submit: "Vorschlagen",
+      coursesLabel: "Was möchten Sie", prefsLabel: "Vorlieben", micLabel: "Sprechen",
+      antipasto: "Vorspeise", primo: "Erster Gang", secondo: "Hauptgang", vino: "Wein",
+      menuSummary: "Komplette Speisekarte", foot: "Die Summe ist ein Richtwert und enthält ein Glas Wein. Die Weine sind Beispiele, bis die echte Weinkarte vorliegt. Bei Allergien fragen Sie bitte das Personal.",
+      found: "Das empfehle ich Ihnen", said: "Sie sagten: „%s“.", prefsLine: "Vorlieben: %s.", surprise: "Keine genaue Vorliebe, ich überrasche Sie mit einem Vorschlag.",
+      example: "Beispiel", exampleSaid: "Heute möchte ich Fleisch", again: "Anderer Vorschlag", speak: "Vorlesen", total: "Richtsumme",
+      glass: "Glas", bottle: "Flasche", wineHead: "Weine (Beispiel)",
+      whyAnt: "Passt zur Vorspeise (%s).", whySec: "Passt zum Hauptgang (%s).", whyPri: "Passt zum ersten Gang (%s).", whyGen: "Eine ausgewogene Wahl für diese Gerichte.", whyOnly: "Passt gut zu %s.", whyNone: "Eine vielseitige Wahl.",
+      spoken: function (n, a, b, v) { var s = []; if (n) s.push("als Vorspeise " + n); if (a) s.push("als ersten Gang " + a); if (b) s.push("als Hauptgang " + b); if (v) s.push("zum Trinken " + v); return "Ich empfehle " + s.join(", ") + "."; },
+      sections: { antipasti: "Vorspeisen", primi: "Erste Gänge", secondi: "Hauptgänge", contorni: "Beilagen", formaggi: "Käse", dolci: "Nachspeisen" },
+      notes: { pcs4: "4 Stück", season: "Nur in der Saison", min2: "Mindestens 2 Personen, Preis pro Person", perhg: "Nach Gewicht, pro 100 g", portion: "Portion", homemade: "Hausgemacht", bakery: "Von der Patisserie", fromStarters: "Aus den Vorspeisen", fromSides: "Aus den Beilagen" },
+      cats: { bollicine: "Schaumwein", bianco: "Weißwein", rosso: "Rotwein" },
+      tags: { "carne-rossa": "rotem Fleisch", "carne-bianca": "hellem Fleisch", pesce: "Fisch", crostacei: "Krustentieren", fritto: "Frittiertem", tartufo: "Trüffel", verdure: "Gemüse", formaggio: "Käse", funghi: "Pilzen", pomodoro: "Tomaten" },
+      chips: { carne: "Fleisch", pesce: "Fisch", vegetariano: "Vegetarisch", leggero: "Leicht", sostanzioso: "Deftig", bollicine: "Schaumwein", bianco: "Weißwein", rosso: "Rotwein", economico: "Günstig", "no-carne": "Ohne Fleisch", "no-pesce": "Ohne Fisch" }
+    },
+    en: {
+      h1: "What are you in the mood for?",
+      lead: "Say it or type it. I suggest a starter, a first course, a main and a wine. You can ask for just a first course too.",
+      tap: "Tap and speak", tryHint: "Try saying: “Just a fish first course”", listening: "Listening…",
+      nohear: "I didn't hear anything.", nohear2: "Tap the microphone and try again.",
+      blocked: "The microphone isn't available on this page.", blocked2: "Type below, or tap the microphone on your phone keyboard to dictate.",
+      qlabel: "Type your request", ph: "I feel like fish today, something light", submit: "Suggest",
+      coursesLabel: "What you want", prefsLabel: "Preferences", micLabel: "Speak",
+      antipasto: "Starter", primo: "First course", secondo: "Main", vino: "Wine",
+      menuSummary: "Full menu", foot: "The total is approximate and counts one glass of wine. The wines are examples until the real wine list arrives. Please ask the staff about allergies and ingredients.",
+      found: "Here is what I suggest", said: "You said: “%s”.", prefsLine: "Preferences: %s.", surprise: "No specific preference, so here is a surprise.",
+      example: "Example", exampleSaid: "I feel like meat today", again: "Another suggestion", speak: "Read aloud", total: "Approximate total",
+      glass: "glass", bottle: "bottle", wineHead: "Wines (example)",
+      whyAnt: "Goes well with the starter (%s).", whySec: "Goes well with the main (%s).", whyPri: "Goes well with the first course (%s).", whyGen: "A balanced choice for these dishes.", whyOnly: "Pairs well with %s.", whyNone: "A versatile choice.",
+      spoken: function (n, a, b, v) { var s = []; if (n) s.push("as a starter " + n); if (a) s.push("as a first course " + a); if (b) s.push("as a main " + b); if (v) s.push("to drink " + v); return "I suggest " + s.join(", ") + "."; },
+      sections: { antipasti: "Starters", primi: "First courses", secondi: "Mains", contorni: "Sides", formaggi: "Cheese", dolci: "Desserts" },
+      notes: { pcs4: "4 pieces", season: "Seasonal only", min2: "Minimum 2 people, price per person", perhg: "By weight, per 100 g", portion: "Portion", homemade: "Homemade", bakery: "From the pastry shop", fromStarters: "From the starters", fromSides: "From the sides" },
+      cats: { bollicine: "Sparkling", bianco: "White", rosso: "Red" },
+      tags: { "carne-rossa": "red meat", "carne-bianca": "white meat", pesce: "fish", crostacei: "shellfish", fritto: "fried food", tartufo: "truffle", verdure: "vegetables", formaggio: "cheese", funghi: "mushrooms", pomodoro: "tomato" },
+      chips: { carne: "Meat", pesce: "Fish", vegetariano: "Vegetarian", leggero: "Light", sostanzioso: "Hearty", bollicine: "Sparkling", bianco: "White", rosso: "Red", economico: "Budget", "no-carne": "No meat", "no-pesce": "No fish" }
+    }
+  };
+  // Pairing data for the starters: [type, weight, wine tags], in menu order
+  var AM = [["pesce", 1, ["pesce", "crostacei"]], ["pesce", 1, ["pesce", "crostacei"]], ["pesce", 1, ["pesce"]],
+    ["pesce", 1, ["pesce"]], ["pesce", 1, ["pesce"]], ["pesce", 1, ["pesce"]], ["pesce", 1, ["pesce", "crostacei"]],
+    ["pesce", 1, ["crostacei", "pesce"]], ["pesce", 2, ["pesce"]], ["pesce", 1, ["pesce", "crostacei"]],
+    ["pesce", 2, ["pesce", "crostacei"]], ["vegetariano", 2, ["funghi", "formaggio"]],
+    ["carne", 2, ["carne-rossa", "formaggio"]], ["carne", 2, ["carne-rossa"]], ["carne", 1, ["carne-bianca", "pesce"]],
+    ["vegetariano", 1, ["formaggio", "pomodoro"]], ["carne", 1, ["carne-bianca"]]];
+  MENU.antipasti.forEach(function (d, i) { d.t = AM[i][0]; d.w = AM[i][1]; d.tags = AM[i][2]; });
+  var CHIP_KEYS = ["carne", "pesce", "vegetariano", "leggero", "sostanzioso", "bollicine", "bianco", "rosso", "economico"];
+  var SPEECH_LANG = { it: "it-IT", de: "de-DE", en: "en-US" };
+
+  /* ---------- Understanding the request (Italian, German, English) ---------- */
+  function norm(s) { return String(s).toLowerCase().replace(/ß/g, "ss").normalize("NFD").replace(/[̀-ͯ]/g, ""); }
+  var LANG_WORDS = {
+    it: /\b(voglio|vorrei|mi va|oggi|mangiare|che|con|senza|solo|un|una|il|la|carne|pesce|primo|secondo|vino|leggero|suggerisci|consigli|consigliami|piatto|bianco|rosso|fame|per favore|ciao|buongiorno|e|di)\b/g,
+    en: /\b(i|want|would|like|today|the|and|with|without|only|just|meat|fish|first|course|main|wine|light|please|hungry|suggest|recommend|something|some|dish|me|my|for|feel|fancy|hi|hello|red|white)\b/g,
+    de: /\b(ich|mochte|moechte|will|heute|und|mit|ohne|nur|fleisch|fisch|erster|ersten|gang|hauptgericht|hauptgang|wein|leicht|bitte|hunger|empfehle|etwas|gericht|mir|lust|hallo|guten|ein|eine|einen|der|die|das|vorspeise|rot|weiss|rotwein|weisswein)\b/g
+  };
+  function detectLang(s, current) {
+    var sc = {}, best = current, top = 0;
+    ["it", "de", "en"].forEach(function (l) { sc[l] = (s.match(LANG_WORDS[l]) || []).length; });
+    ["it", "de", "en"].forEach(function (l) { if (sc[l] > top || (sc[l] === top && l === current && top > 0)) { top = sc[l]; best = l; } });
+    return top > 0 ? best : current;
+  }
+  function neg(src) {
+    return new RegExp("(senza|niente|non voglio|non mi serve|without|no|ohne|kein|keinen|keine)\\s+(il |un |uno |una |the |a |den |ein |einen |eine )?(" + src + ")");
+  }
+  var R = {
+    antipasto: "antipasto|antipasti|starter|starters|appetizer|appetizers|vorspeise|vorspeisen",
+    primo: "primo|primi|first course|first dish|pasta course|erster gang|ersten gang|erstes gericht",
+    secondo: "secondo|secondi|second course|main course|main dish|main|zweiter gang|zweiten gang|hauptgericht|hauptspeise|hauptgang",
+    vino: "vino|vini|wine|wein"
+  };
+  function parse(text) {
+    var s = " " + norm(text) + " ", prefs = {}, c = { antipasto: true, primo: true, secondo: true, vino: true };
+    function add(k) { prefs[k] = true; }
+    // courses
+    var has = {}; Object.keys(R).forEach(function (k) { has[k] = new RegExp("\\b(" + R[k] + ")\\b").test(s); });
+    var only = /\b(solo|soltanto|solamente|only|just|nur|bloss)\b/.test(s);
+    var any = has.antipasto || has.primo || has.secondo;
+    if (only && (any || has.vino)) { c = { antipasto: has.antipasto, primo: has.primo, secondo: has.secondo, vino: has.vino }; }
+    else if (any) { c.antipasto = has.antipasto; c.primo = has.primo; c.secondo = has.secondo; }
+    Object.keys(R).forEach(function (k) { if (neg("(" + R[k] + ")").test(s)) { c[k] = false; } });
+    if (!c.antipasto && !c.primo && !c.secondo && !c.vino) c = { antipasto: true, primo: true, secondo: true, vino: true };
+    // food negations
+    var negC = /(senza|niente|non voglio|non mangio|evito|non mi va( di)?|no|without|ohne|kein|keine|keinen)\s+(la |il |di |della |del |any |the )?(carne|meat|fleisch)/;
+    var negP = /(senza|niente|non voglio|non mangio|evito|non mi va( di)?|no|without|ohne|kein|keine|keinen)\s+(il |di |del |any |the )?(pesce|mare|fish|seafood|fisch|meeresfruchte)/;
+    if (negC.test(s)) { add("no-carne"); s = s.replace(negC, " "); }
+    if (negP.test(s)) { add("no-pesce"); s = s.replace(negP, " "); }
+    if (/carn|manzo|bistecc|agnell|pollo|maiale|anatra|brasat|tagliata|vitell|filetto|meat|beef|steak|chicken|veal|duck|fleisch|rind|hahnchen|huhn|ente|kalb|\bente\b/.test(s)) add("carne");
+    if (/pesc|\bmare\b|gamber|vongol|branzin|calamar|crostace|tonno|astice|salmone|fish|seafood|prawn|shrimp|clam|lobster|salmon|fisch|meeresfruchte|garnele|lachs|muschel|hummer|krabbe/.test(s)) add("pesce");
+    if (/vegetar|verdur|veggie|vegan|ortagg|vegetables|gemuse/.test(s)) add("vegetariano");
+    if (/legger|digeribil|light|leicht|bekommlich|(poco|non troppo|non)\s+pesant/.test(s)) add("leggero");
+    var s2 = s.replace(/(poco|non troppo|non)\s+pesant\w*/g, " ");
+    if (/sostanzios|\bricc|abbondant|molta fame|tanta fame|\bforte|corposo|robust|pesante|hearty|filling|substantial|heavy|deftig|kraftig|herzhaft|sattigend|reichhaltig/.test(s2)) add("sostanzioso");
+    if (/bollicin|spumante|franciacorta|prosecco|frizzant|sparkling|bubbles|sekt|schaumwein|perlwein/.test(s)) add("bollicine");
+    if (/\bbianco\b|\bwhite\b|weisswein|\bweiss\b/.test(s)) add("bianco");
+    if (/\brosso\b|\bred wine\b|\bred\b|rotwein|\brot\b/.test(s)) add("rosso");
+    if (/econom|spendere poco|budget|non troppo car|conveniente|cheap|inexpensive|gunstig|billig|preiswert/.test(s)) add("economico");
+    if (prefs.leggero && prefs.sostanzioso) delete prefs.sostanzioso;
+    return { prefs: prefs, courses: c };
+  }
+
+  /* ---------- Choosing the dishes and the wine ---------- */
+  function allowed(d, p) {
+    var types = ["carne", "pesce", "vegetariano"].filter(function (k) { return p[k]; });
+    if (types.length && types.indexOf(d.t) < 0) return false;
+    if (p["no-carne"] && d.t === "carne") return false;
+    if (p["no-pesce"] && d.t === "pesce") return false;
+    return true;
+  }
+  function pool(list, p) {
+    list = list.filter(function (d) { return !d.x && (!d.hide || p.vegetariano); });
+    var a = list.filter(function (d) { return allowed(d, p); });
+    if (a.length) return a;
+    return list.filter(function (d) {
+      return !(p["no-carne"] && d.t === "carne") && !(p["no-pesce"] && d.t === "pesce");
+    });
+  }
+  function fit(d, p) {
+    var f = 0;
+    if (p.leggero) f -= Math.abs(d.w - 1) * 2;
+    if (p.sostanzioso) f -= Math.abs(d.w - 3) * 2;
+    if (p.economico) f -= d.p / 8;
+    return f;
+  }
+  function overlap(a, b) { return a.filter(function (t) { return b.indexOf(t) >= 0; }); }
+
+  function pickWine(n, a, b, p, skip) {
+    var cats = ["bollicine", "bianco", "rosso"].filter(function (c) { return p[c]; });
+    var list = MENU.vini.filter(function (v) { return !cats.length || cats.indexOf(v.c) >= 0; });
+    if (!list.length) list = MENU.vini;
+    var free = list.filter(function (v) { return !skip || !skip[v.n]; });
+    if (free.length) list = free;
+    var mainTags = b ? b.tags : (a ? a.tags : (n ? n.tags : []));
+    var sideTags = b ? (a ? a.tags : (n ? n.tags : [])) : ((a && n) ? n.tags : []);
+    if (!n && !a && !b) {
+      if (p.carne) mainTags = ["carne-rossa", "carne-bianca"];
+      else if (p.pesce) mainTags = ["pesce", "crostacei"];
+      else if (p.vegetariano) mainTags = ["verdure", "formaggio"];
+    }
+    var ws = [];
+    if (n) ws.push(n.w); if (a) ws.push(a.w); if (b) ws.push(b.w); if (b) ws.push(b.w);
+    var target = ws.length ? ws.reduce(function (x, y) { return x + y; }, 0) / ws.length : (p.leggero ? 1 : p.sostanzioso ? 3 : 2);
+    var best = null;
+    list.forEach(function (v) {
+      var s = overlap(v.tags, mainTags).length * 3 + overlap(v.tags, sideTags).length * 1.5
+        - Math.abs(v.w - target) * 1.5 + Math.random() * 0.8 - (p.economico ? v.p / 15 : 0);
+      if (!best || s > best.s) best = { v: v, s: s };
+    });
+    return best.v;
+  }
+
+  function propose(p, shown, c) {
+    var N = c.antipasto ? pool(MENU.antipasti, p) : [null];
+    var A = c.primo ? pool(MENU.primi, p) : [null], B = c.secondo ? pool(MENU.secondi, p) : [null];
+    if (!c.antipasto && !c.primo && !c.secondo) {
+      var w = pickWine(null, null, null, p, shown.w);
+      shown.w[w.n] = true;
+      if (Object.keys(shown.w).length >= MENU.vini.length) shown.w = {};
+      return { n: null, a: null, b: null, v: w };
+    }
+    if (Object.keys(shown.k).length >= N.length * A.length * B.length) shown.k = {};
+    var best = null;
+    N.forEach(function (n) {
+      A.forEach(function (a) {
+        B.forEach(function (b) {
+          var key = (n ? n.n.it : "-") + "|" + (a ? a.n.it : "-") + "|" + (b ? b.n.it : "-");
+          var s = (n ? fit(n, p) : 0) + (a ? fit(a, p) : 0) + (b ? fit(b, p) : 0) + Math.random() * 1.5;
+          if (a && b && !p.leggero && !p.sostanzioso) {
+            var t = a.w + b.w;
+            if (t >= 6) s -= 3; else if (t === 5) s -= 1;
+          }
+          if (n && (a || b) && n.w >= 2 && !p.sostanzioso) s -= 1;
+          if (shown.k[key]) s -= 100;
+          if (!best || s > best.s) best = { n: n, a: a, b: b, s: s, key: key };
+        });
+      });
+    });
+    shown.k[best.key] = true;
+    return { n: best.n, a: best.a, b: best.b, v: c.vino ? pickWine(best.n, best.a, best.b, p, null) : null };
+  }
+
+  /* ---------- State ---------- */
+  var state = { lang: "it", prefs: {}, courses: { antipasto: true, primo: true, secondo: true, vino: true }, shown: { k: {}, w: {} }, said: "", example: false, current: null, listening: false };
+  var $ = function (id) { return document.getElementById(id); };
+  var el = { mic: $("mic"), status: $("status"), form: $("form"), q: $("q"), chips: $("chips"), courses: $("courses"), slip: $("slip"), menu: $("menu"), langs: $("langs") };
+  var T = function () { return UI[state.lang]; };
+  var eur = function (n) { return "€ " + String(n).replace(".", ","); };
+  var nameOf = function (d) { return d.n[state.lang] || d.n.it; };
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+  function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  function keys(o) { return Object.keys(o).filter(function (k) { return o[k]; }); }
+
+  /* ---------- Rendering ---------- */
+  function renderLangs() {
+    el.langs.innerHTML = "";
+    ["it", "de", "en"].forEach(function (l) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "lang"; b.textContent = l.toUpperCase();
+      b.setAttribute("aria-pressed", state.lang === l ? "true" : "false");
+      b.addEventListener("click", function () { applyLang(l); });
+      el.langs.appendChild(b);
+    });
+  }
+  function renderChips() {
+    var t = T();
+    el.courses.innerHTML = "";
+    ["antipasto", "primo", "secondo", "vino"].forEach(function (k) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "chip"; b.textContent = t[k];
+      b.setAttribute("aria-pressed", state.courses[k] ? "true" : "false");
+      b.addEventListener("click", function () { toggleCourse(k); });
+      el.courses.appendChild(b);
+    });
+    el.chips.innerHTML = "";
+    var list = CHIP_KEYS.slice();
+    ["no-carne", "no-pesce"].forEach(function (k) { if (state.prefs[k]) list.push(k); });
+    list.forEach(function (k) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "chip"; b.textContent = t.chips[k];
+      b.setAttribute("aria-pressed", state.prefs[k] ? "true" : "false");
+      b.addEventListener("click", function () { togglePref(k); });
+      el.chips.appendChild(b);
+    });
+  }
+  function line(kind, name, sub, price) {
+    return '<li class="line"><span class="kind">' + esc(kind) + "</span><div><h3>" + esc(name) + "</h3>" +
+      (sub ? "<p>" + esc(sub) + "</p>" : "") + '</div><span class="price">' + price + "</span></li>";
+  }
+  function noteOf(d) { return d.note ? T().notes[d.note] : ""; }
+  function whyText(r) {
+    var t = T(), sec = r.b && r.v ? overlap(r.v.tags, r.b.tags) : [], pri = r.a && r.v ? overlap(r.v.tags, r.a.tags) : [],
+      ant = r.n && r.v ? overlap(r.v.tags, r.n.tags) : [], lead;
+    if (!r.v) return "";
+    if (sec.length) lead = t.whySec.replace("%s", t.tags[sec[0]]);
+    else if (pri.length) lead = t.whyPri.replace("%s", t.tags[pri[0]]);
+    else if (ant.length) lead = t.whyAnt.replace("%s", t.tags[ant[0]]);
+    else if (r.n || r.a || r.b) lead = t.whyGen;
+    else {
+      var tg = overlap(r.v.tags, state.prefs.carne ? ["carne-rossa", "carne-bianca"] : state.prefs.pesce ? ["pesce", "crostacei"] : state.prefs.vegetariano ? ["verdure", "formaggio"] : []);
+      lead = tg.length ? t.whyOnly.replace("%s", t.tags[tg[0]]) : t.whyNone;
+    }
+    return lead + " " + r.v.d[state.lang];
+  }
+  function heardLine() {
+    var t = T();
+    if (state.example) return t.said.replace("%s", t.exampleSaid);
+    if (state.said) return t.said.replace("%s", state.said);
+    var names = keys(state.prefs).map(function (k) { return t.chips[k]; });
+    return names.length ? t.prefsLine.replace("%s", names.join(", ")) : t.surprise;
+  }
+  function renderSlip() {
+    var r = state.current, t = T();
+    if (!r) return;
+    var total = (r.n ? r.n.p : 0) + (r.a ? r.a.p : 0) + (r.b ? r.b.p : 0) + (r.v ? r.v.g : 0), rows = "";
+    if (r.n) rows += line(t.antipasto, nameOf(r.n), [r.n.dd ? r.n.dd[state.lang] : "", noteOf(r.n)].filter(Boolean).join(". "), eur(r.n.p));
+    if (r.a) rows += line(t.primo, nameOf(r.a), noteOf(r.a), eur(r.a.p));
+    if (r.b) rows += line(t.secondo, nameOf(r.b), noteOf(r.b), eur(r.b.p));
+    if (r.v) rows += line(t.vino, r.v.n, t.cats[r.v.c], eur(r.v.g) + "<small>" + t.glass + " · " + t.bottle + " " + eur(r.v.p) + "</small>");
+    el.slip.innerHTML = '<p class="heard"></p><ol class="lines">' + rows + '</ol><p class="why"></p>' +
+      '<div class="total"><span>' + esc(t.total) + "</span><span>" + eur(total) + "</span></div>" +
+      '<div class="actions"><button class="btn primary" id="again" type="button">' + esc(t.again) + "</button>" +
+      '<button class="btn" id="speak" type="button">' + esc(t.speak) + "</button></div>";
+    var h = el.slip.querySelector(".heard");
+    if (state.example) { var tg = document.createElement("span"); tg.className = "tag"; tg.textContent = t.example; h.appendChild(tg); }
+    h.appendChild(document.createTextNode(heardLine()));
+    el.slip.querySelector(".why").textContent = whyText(r);
+    $("again").addEventListener("click", function () { state.example = false; next(); });
+    var sp = $("speak");
+    if (!("speechSynthesis" in window)) sp.hidden = true; else sp.addEventListener("click", speak);
+  }
+  function renderMenu() {
+    var t = T();
+    var html = ["antipasti", "primi", "secondi", "contorni", "formaggi", "dolci"].map(function (k) {
+      return "<section><h2>" + esc(t.sections[k]) + "</h2><ul>" + MENU[k].filter(function (d) { return !d.hide; }).map(function (d) {
+        var price = d.note === "perhg" ? eur(d.p) + " / 100 g" : eur(d.p);
+        var sub = [d.dd ? d.dd[state.lang] : "", noteOf(d)].filter(Boolean).join(". ");
+        return '<li class="item"><b>' + esc(nameOf(d)) + "</b><span>" + price + "</span>" + (sub ? "<p>" + esc(sub) + "</p>" : "") + "</li>";
+      }).join("") + "</ul></section>";
+    });
+    html.push("<section><h2>" + esc(t.wineHead) + "</h2><ul>" + MENU.vini.map(function (v) {
+      return '<li class="item"><b>' + esc(v.n) + "</b><span>" + eur(v.g) + " · " + eur(v.p) + "</span><p>" + esc(t.cats[v.c] + ". " + v.d[state.lang]) + "</p></li>";
+    }).join("") + "</ul></section>");
+    el.menu.innerHTML = html.join("");
+  }
+  function applyLang(l) {
+    state.lang = l;
+    var t = T();
+    document.documentElement.lang = l;
+    Array.prototype.forEach.call(document.querySelectorAll("[data-i]"), function (n) { n.textContent = t[n.getAttribute("data-i")]; });
+    el.q.placeholder = t.ph;
+    el.mic.setAttribute("aria-label", t.micLabel);
+    renderLangs(); renderChips(); renderMenu(); renderSlip();
+    if (!state.listening && !state.keepStatus) setStatus(state.current && !state.example ? t.found : t.tap, state.example ? t.tryHint : "");
+  }
+  function setStatus(main, small) {
+    el.status.textContent = main;
+    if (small) { var s = document.createElement("small"); s.textContent = small; el.status.appendChild(s); }
+  }
+
+  /* ---------- Actions ---------- */
+  function next() {
+    state.current = propose(state.prefs, state.shown, state.courses);
+    renderChips(); renderSlip();
+  }
+  function resetShown() { state.shown = { k: {}, w: {} }; }
+  function run(text) {
+    var l = detectLang(norm(text), state.lang);
+    var p = parse(text);
+    state.prefs = p.prefs; state.courses = p.courses; state.said = text; state.example = false; state.keepStatus = false;
+    resetShown();
+    if (l !== state.lang) applyLang(l);
+    setStatus(T().found);
+    next();
+  }
+  function togglePref(key) {
+    var p = state.prefs;
+    if (p[key]) delete p[key];
+    else {
+      p[key] = true;
+      if (key === "carne") delete p["no-carne"];
+      if (key === "pesce") delete p["no-pesce"];
+      if (key === "leggero") delete p.sostanzioso;
+      if (key === "sostanzioso") delete p.leggero;
+    }
+    state.said = ""; state.example = false; resetShown(); next();
+  }
+  function toggleCourse(k) {
+    var c = state.courses, on = keys(c).length;
+    if (c[k] && on === 1) return;
+    c[k] = !c[k];
+    state.example = false; resetShown(); next();
+  }
+  function speak() {
+    var r = state.current;
+    if (!r || !("speechSynthesis" in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(T().spoken(r.n && nameOf(r.n), r.a && nameOf(r.a), r.b && nameOf(r.b), r.v && r.v.n));
+      u.lang = SPEECH_LANG[state.lang];
+      window.speechSynthesis.speak(u);
+    } catch (e) { /* voice output is optional */ }
+  }
+
+  /* ---------- Voice input ---------- */
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var rec = null, finalText = "", errored = false;
+  function stopUI() { state.listening = false; el.mic.classList.remove("on"); el.mic.setAttribute("aria-pressed", "false"); }
+  function blocked() {
+    state.keepStatus = true;
+    setStatus(T().blocked, T().blocked2);
+    try { el.q.focus(); } catch (e) { /* ignore */ }
+  }
+  el.mic.addEventListener("click", function () {
+    if (state.listening && rec) { rec.stop(); return; }
+    if (!SR) { blocked(); return; }
+    try {
+      errored = false; finalText = "";
+      rec = new SR();
+      rec.lang = SPEECH_LANG[state.lang]; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
+      rec.onstart = function () { state.listening = true; el.mic.classList.add("on"); el.mic.setAttribute("aria-pressed", "true"); setStatus(T().listening); };
+      rec.onresult = function (e) {
+        var t = "";
+        for (var i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
+        finalText = t; el.q.value = t; setStatus("«" + t + "»");
+      };
+      rec.onerror = function (e) {
+        errored = true;
+        if (e.error === "no-speech") { setStatus(T().nohear, T().nohear2); }
+        else if (e.error !== "aborted") blocked();
+        else errored = false;
+      };
+      rec.onend = function () {
+        stopUI();
+        if (finalText.trim()) run(finalText.trim());
+        else if (!errored) setStatus(T().tap);
+      };
+      rec.start();
+    } catch (err) { stopUI(); blocked(); }
+  });
+  el.form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var t = el.q.value.trim();
+    if (t) run(t);
+  });
+
+  /* ---------- Start with a worked example in the phone's language ---------- */
+  var nl = String((navigator.languages && navigator.languages[0]) || navigator.language || "it").slice(0, 2).toLowerCase();
+  state.prefs = { carne: true };
+  state.example = true;
+  state.current = propose(state.prefs, state.shown, state.courses);
+  applyLang(UI[nl] ? nl : "it");
+})();
+</script>
+
+</body></html>
